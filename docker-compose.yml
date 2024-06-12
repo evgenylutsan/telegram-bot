@@ -16,8 +16,12 @@ services:
   bot:
     build: .
     environment:
-      DATABASE_URL: postgres://postgres:Qwerty1234@db:5432/Eventtoday_DB
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      - DATABASE_HOSTNAME=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
     depends_on:
       - db
 
