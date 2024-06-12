@@ -1,11 +1,11 @@
 require('dotenv').config();
 
-const { Sequelize } = require('sequelize');
+const { Sequelize, DataTypes } = require('sequelize');
 
 const sequelize = new Sequelize(
-  process.env.DATABASE_NAME, 
-  process.env.DATABASE_USERNAME, 
-  process.env.DATABASE_PASSWORD, 
+  process.env.DATABASE_NAME,
+  process.env.DATABASE_USERNAME,
+  process.env.DATABASE_PASSWORD,
   {
     host: process.env.DATABASE_HOST,
     port: process.env.DATABASE_PORT,
@@ -22,15 +22,7 @@ sequelize.authenticate()
     console.error('Unable to connect to the database:', err);
   });
 
-// Проверка подключения
-sequelize.authenticate()
-  .then(() => {
-    console.log('Connection has been established successfully.');
-  })
-  .catch(err => {
-    console.error('Unable to connect to the database:', err);
-  });
-
+// Определение модели User
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.INTEGER,
@@ -47,20 +39,18 @@ const User = sequelize.define('User', {
     allowNull: false
   },
   secondname: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: DataTypes.STRING
   },
   birth_date: {
-    type: DataTypes.DATE,
-    allowNull: false
+    type: DataTypes.DATE
   },
   email: {
     type: DataTypes.STRING,
+    unique: true,
     allowNull: false
   },
   phone_number: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: DataTypes.STRING
   },
   password: {
     type: DataTypes.STRING,
