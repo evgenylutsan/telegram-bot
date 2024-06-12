@@ -9,14 +9,14 @@ const log = console.log;
 const token = process.env.TELEGRAM_BOT_TOKEN;
 let bot = new TelegramBot(token, { polling: true });
 
-// Хранение сообщений для удаления при рестарте
+// Хранение сообщений для удаления при рестарте и очистке
 let messagesToDelete = [];
 
 // Функция старта
 const startBot = (chatId) => {
   const welcomeMessage = 'Центр Конференций Сегодня приветствует вас - evtoday.ru';
   bot.sendMessage(chatId, welcomeMessage).then((sentMessage) => {
-    messagesToDelete.push(sentMessage.message_id);
+    messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
 
     const opts = {
       reply_markup: {
@@ -28,9 +28,23 @@ const startBot = (chatId) => {
     };
 
     bot.sendMessage(chatId, 'Выберите один из вариантов ниже:', opts).then((sentMessage) => {
-      messagesToDelete.push(sentMessage.message_id);
+      messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
     });
   });
+};
+
+// Функция очистки чата
+const clearChat = async (chatId) => {
+  for (const message of messagesToDelete) {
+    if (message.chatId === chatId) {
+      try {
+        await bot.deleteMessage(chatId, message.messageId);
+      } catch (err) {
+        log(`Failed to delete message ${message.messageId}:`, err);
+      }
+    }
+  }
+  messagesToDelete = messagesToDelete.filter(message => message.chatId !== chatId);
 };
 
 // Обработчик команды /start
@@ -39,54 +53,71 @@ bot.onText(/\/start/, (msg) => {
   startBot(chatId);
 });
 
+// Обработчик команды /clear
+bot.onText(/\/clear/, async (msg) => {
+  const chatId = msg.chat.id;
+  await clearChat(chatId);
+  bot.sendMessage(chatId, 'Чат был очищен.');
+});
+
 // Обработчик нажатия на кнопку
 bot.on('callback_query', async (callbackQuery) => {
   const msg = callbackQuery.message;
   const chatId = msg.chat.id;
 
   if (callbackQuery.data === 'calendar') {
-    bot.sendMessage(chatId, 'Календарь мероприятий пока не реализован.');
+    bot.sendMessage(chatId, 'Календарь мероприятий пока не реализован.').then((sentMessage) => {
+      messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+    });
   } else if (callbackQuery.data === 'auth_by_email') {
-    bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:');
-    bot.once('message', async (msg) => {
-      const userEmail = msg.text;
+    bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:').then((sentMessage) => {
+      messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+      bot.once('message', async (msg) => {
+        const userEmail = msg.text;
+        messagesToDelete.push({ chatId, messageId: msg.message_id });
 
-      try {
-        await sequelize.authenticate();
-        log('Connection has been established successfully.');
+        try {
+          await sequelize.authenticate();
+          log('Connection has been established successfully.');
 
-        const user = await User.findOne({ where: { email: userEmail } });
-        if (user) {
-          const opts = {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: 'Список билетов', callback_data: 'list_tickets' }]
-              ]
-            }
-          };
-          bot.sendMessage(chatId, `Имя: ${user.name}\nEmail: ${user.email}`, opts);
-        } else {
-          bot.sendMessage(chatId, 'Пользователь не найден.');
+          const user = await User.findOne({ where: { email: userEmail } });
+          if (user) {
+            const opts = {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: 'Список билетов', callback_data: 'list_tickets' }]
+                ]
+              }
+            };
+            bot.sendMessage(chatId, `Имя: ${user.name}\nEmail: ${user.email}`, opts).then((sentMessage) => {
+              messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+            });
+          } else {
+            bot.sendMessage(chatId, 'Пользователь не найден.').then((sentMessage) => {
+              messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+            });
+          }
+        } catch (error) {
+          log('Unable to connect to the database:', error);
+          bot.sendMessage(chatId, 'Произошла ошибка при обработке запроса.').then((sentMessage) => {
+            messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+          });
         }
-      } catch (error) {
-        log('Unable to connect to the database:', error);
-        bot.sendMessage(chatId, 'Произошла ошибка при обработке запроса.');
-      }
+      });
     });
   } else if (callbackQuery.data === 'list_tickets') {
-    bot.sendMessage(chatId, 'Функционал списка билетов пока не реализован.');
+    bot.sendMessage(chatId, 'Функционал списка билетов пока не реализован.').then((sentMessage) => {
+      messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+    });
   }
 });
 
 // Команда для перезапуска бота
-bot.onText(/\/restart/, (msg) => {
+bot.onText(/\/restart/, async (msg) => {
   const chatId = msg.chat.id;
-  bot.sendMessage(chatId, 'Бот перезапускается...').then(() => {
+  bot.sendMessage(chatId, 'Бот перезапускается...').then(async () => {
     // Удаление всех предыдущих сообщений
-    messagesToDelete.forEach((messageId) => {
-      bot.deleteMessage(chatId, messageId).catch((err) => log('Failed to delete message:', err));
-    });
-    messagesToDelete = [];
+    await clearChat(chatId);
 
     // Останавливаем текущий экземпляр бота
     bot.stopPolling();
@@ -100,41 +131,60 @@ bot.onText(/\/restart/, (msg) => {
       startBot(chatId);
     });
 
+    bot.onText(/\/clear/, async (msg) => {
+      const chatId = msg.chat.id;
+      await clearChat(chatId);
+      bot.sendMessage(chatId, 'Чат был очищен.');
+    });
+
     bot.on('callback_query', async (callbackQuery) => {
       const msg = callbackQuery.message;
       const chatId = msg.chat.id;
 
       if (callbackQuery.data === 'calendar') {
-        bot.sendMessage(chatId, 'Календарь мероприятий пока не реализован.');
+        bot.sendMessage(chatId, 'Календарь мероприятий пока не реализован.').then((sentMessage) => {
+          messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+        });
       } else if (callbackQuery.data === 'auth_by_email') {
-        bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:');
-        bot.once('message', async (msg) => {
-          const userEmail = msg.text;
+        bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:').then((sentMessage) => {
+          messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+          bot.once('message', async (msg) => {
+            const userEmail = msg.text;
+            messagesToDelete.push({ chatId, messageId: msg.message_id });
 
-          try {
-            await sequelize.authenticate();
-            log('Connection has been established successfully.');
+            try {
+              await sequelize.authenticate();
+              log('Connection has been established successfully.');
 
-            const user = await User.findOne({ where: { email: userEmail } });
-            if (user) {
-              const opts = {
-                reply_markup: {
-                  inline_keyboard: [
-                    [{ text: 'Список билетов', callback_data: 'list_tickets' }]
-                  ]
-                }
-              };
-              bot.sendMessage(chatId, `Имя: ${user.name}\nEmail: ${user.email}`, opts);
-            } else {
-              bot.sendMessage(chatId, 'Пользователь не найден.');
+              const user = await User.findOne({ where: { email: userEmail } });
+              if (user) {
+                const opts = {
+                  reply_markup: {
+                    inline_keyboard: [
+                      [{ text: 'Список билетов', callback_data: 'list_tickets' }]
+                    ]
+                  }
+                };
+                bot.sendMessage(chatId, `Имя: ${user.name}\nEmail: ${user.email}`, opts).then((sentMessage) => {
+                  messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+                });
+              } else {
+                bot.sendMessage(chatId, 'Пользователь не найден.').then((sentMessage) => {
+                  messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+                });
+              }
+            } catch (error) {
+              log('Unable to connect to the database:', error);
+              bot.sendMessage(chatId, 'Произошла ошибка при обработке запроса.').then((sentMessage) => {
+                messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+              });
             }
-          } catch (error) {
-            log('Unable to connect to the database:', error);
-            bot.sendMessage(chatId, 'Произошла ошибка при обработке запроса.');
-          }
+          });
         });
       } else if (callbackQuery.data === 'list_tickets') {
-        bot.sendMessage(chatId, 'Функционал списка билетов пока не реализован.');
+        bot.sendMessage(chatId, 'Функционал списка билетов пока не реализован.').then((sentMessage) => {
+          messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+        });
       }
     });
 
