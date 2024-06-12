@@ -73,7 +73,7 @@ bot.on('callback_query', async (callbackQuery) => {
 
       let eventsMessage = 'Календарь мероприятий:\n\n';
       events.forEach(event => {
-        eventsMessage += `Название: ${event.name}\nДата: ${event.date}\nОписание: ${event.description}\n\n`;
+        eventsMessage += `Название: ${event.event_headline || 'не указано'}\nДата: ${event.event_date || 'не указана'}\nОписание: ${event.event_short_description || 'не указано'}\n\n`;
       });
 
       bot.sendMessage(chatId, eventsMessage).then((sentMessage) => {
@@ -164,7 +164,7 @@ bot.onText(/\/restart/, async (msg) => {
 
           let eventsMessage = 'Календарь мероприятий:\n\n';
           events.forEach(event => {
-            eventsMessage += `Название: ${event.name}\nДата: ${event.date}\nОписание: ${event.description}\n\n`;
+            eventsMessage += `Название: ${event.event_headline || 'не указано'}\nДата: ${event.event_date || 'не указана'}\nОписание: ${event.event_short_description || 'не указано'}\n\n`;
           });
 
           bot.sendMessage(chatId, eventsMessage).then((sentMessage) => {
