@@ -2,7 +2,7 @@ version: '3'
 services:
   db:
     image: postgres:12
-    container_name: db
+    container_name: db_bot
     hostname: db
     environment:
       POSTGRES_DB: ${DATABASE_NAME}
