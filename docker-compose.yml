@@ -1,0 +1,25 @@
+version: '3'
+services:
+  db:
+    image: postgres:12
+    container_name: db
+    hostname: db
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  bot:
+    build: .
+    environment:
+      DATABASE_URL: postgres://postgres:Qwerty1234@db:5432/Eventtoday_DB
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    depends_on:
+      - db
+
+volumes:
+  db-data:
