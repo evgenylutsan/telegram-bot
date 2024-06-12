@@ -1,5 +1,6 @@
 const TelegramBot = require('node-telegram-bot-api');
 const { sequelize, User } = require('./database');
+const axios = require('axios');
 require('dotenv').config();
 
 // Логирование
@@ -66,9 +67,24 @@ bot.on('callback_query', async (callbackQuery) => {
   const chatId = msg.chat.id;
 
   if (callbackQuery.data === 'calendar') {
-    bot.sendMessage(chatId, 'Календарь мероприятий пока не реализован.').then((sentMessage) => {
-      messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
-    });
+    try {
+      const response = await axios.get('https://evtoday.ru/calendar/');
+      const events = response.data;
+
+      let eventsMessage = 'Календарь мероприятий:\n\n';
+      events.forEach(event => {
+        eventsMessage += `Название: ${event.name}\nДата: ${event.date}\nОписание: ${event.description}\n\n`;
+      });
+
+      bot.sendMessage(chatId, eventsMessage).then((sentMessage) => {
+        messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+      });
+    } catch (error) {
+      bot.sendMessage(chatId, 'Не удалось загрузить календарь мероприятий.').then((sentMessage) => {
+        messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+      });
+      log('Error fetching events:', error);
+    }
   } else if (callbackQuery.data === 'auth_by_email') {
     bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:').then((sentMessage) => {
       messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
@@ -142,9 +158,24 @@ bot.onText(/\/restart/, async (msg) => {
       const chatId = msg.chat.id;
 
       if (callbackQuery.data === 'calendar') {
-        bot.sendMessage(chatId, 'Календарь мероприятий пока не реализован.').then((sentMessage) => {
-          messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
-        });
+        try {
+          const response = await axios.get('https://evtoday.ru/calendar/');
+          const events = response.data;
+
+          let eventsMessage = 'Календарь мероприятий:\n\n';
+          events.forEach(event => {
+            eventsMessage += `Название: ${event.name}\nДата: ${event.date}\nОписание: ${event.description}\n\n`;
+          });
+
+          bot.sendMessage(chatId, eventsMessage).then((sentMessage) => {
+            messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+          });
+        } catch (error) {
+          bot.sendMessage(chatId, 'Не удалось загрузить календарь мероприятий.').then((sentMessage) => {
+            messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
+          });
+          log('Error fetching events:', error);
+        }
       } else if (callbackQuery.data === 'auth_by_email') {
         bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:').then((sentMessage) => {
           messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
