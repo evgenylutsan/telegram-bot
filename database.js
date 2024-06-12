@@ -1,6 +1,3 @@
-const { Sequelize, DataTypes } = require('sequelize');
-require('dotenv').config(); 
-
 require('dotenv').config();
 
 const { Sequelize } = require('sequelize');
@@ -15,6 +12,15 @@ const sequelize = new Sequelize(
     dialect: 'postgres'
   }
 );
+
+// Проверка подключения
+sequelize.authenticate()
+  .then(() => {
+    console.log('Connection has been established successfully.');
+  })
+  .catch(err => {
+    console.error('Unable to connect to the database:', err);
+  });
 
 // Проверка подключения
 sequelize.authenticate()
