@@ -16,21 +16,18 @@ let messagesToDelete = [];
 // Функция старта
 const startBot = (chatId) => {
   const welcomeMessage = 'Центр Конференций Сегодня приветствует вас - evtoday.ru';
-  bot.sendMessage(chatId, welcomeMessage).then((sentMessage) => {
+  const opts = {
+    reply_markup: {
+      keyboard: [
+        [{ text: 'Авторизация' }, { text: 'Список мероприятий' }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: false
+    }
+  };
+
+  bot.sendMessage(chatId, welcomeMessage, opts).then((sentMessage) => {
     messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
-
-    const opts = {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: 'Календарь мероприятий', callback_data: 'calendar' }],
-          [{ text: 'Авторизация по почте', callback_data: 'auth_by_email' }]
-        ]
-      }
-    };
-
-    bot.sendMessage(chatId, 'Выберите один из вариантов ниже:', opts).then((sentMessage) => {
-      messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
-    });
   });
 };
 
@@ -61,14 +58,14 @@ bot.onText(/\/clear/, async (msg) => {
   bot.sendMessage(chatId, 'Чат был очищен.');
 });
 
-// Обработчик нажатия на кнопку
-bot.on('callback_query', async (callbackQuery) => {
-  const msg = callbackQuery.message;
+// Обработчик текстовых сообщений
+bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
+  const text = msg.text;
 
-  if (callbackQuery.data === 'calendar') {
+  if (text === 'Список мероприятий') {
     try {
-      const response = await axios.get('https://evtoday.ru/calendar/');
+      const response = await axios.get('https://evtoday.ru/api/calendar/');
       const events = response.data;
 
       let eventsMessage = 'Календарь мероприятий:\n\n';
@@ -85,7 +82,7 @@ bot.on('callback_query', async (callbackQuery) => {
       });
       log('Error fetching events:', error);
     }
-  } else if (callbackQuery.data === 'auth_by_email') {
+  } else if (text === 'Авторизация') {
     bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:').then((sentMessage) => {
       messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
       bot.once('message', async (msg) => {
@@ -121,7 +118,15 @@ bot.on('callback_query', async (callbackQuery) => {
         }
       });
     });
-  } else if (callbackQuery.data === 'list_tickets') {
+  }
+});
+
+// Обработчик нажатия на кнопку
+bot.on('callback_query', async (callbackQuery) => {
+  const msg = callbackQuery.message;
+  const chatId = msg.chat.id;
+
+  if (callbackQuery.data === 'list_tickets') {
     bot.sendMessage(chatId, 'Функционал списка билетов пока не реализован.').then((sentMessage) => {
       messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
     });
@@ -153,13 +158,13 @@ bot.onText(/\/restart/, async (msg) => {
       bot.sendMessage(chatId, 'Чат был очищен.');
     });
 
-    bot.on('callback_query', async (callbackQuery) => {
-      const msg = callbackQuery.message;
+    bot.on('message', async (msg) => {
       const chatId = msg.chat.id;
+      const text = msg.text;
 
-      if (callbackQuery.data === 'calendar') {
+      if (text === 'Список мероприятий') {
         try {
-          const response = await axios.get('https://evtoday.ru/calendar/');
+          const response = await axios.get('https://evtoday.ru/api/calendar/');
           const events = response.data;
 
           let eventsMessage = 'Календарь мероприятий:\n\n';
@@ -176,7 +181,7 @@ bot.onText(/\/restart/, async (msg) => {
           });
           log('Error fetching events:', error);
         }
-      } else if (callbackQuery.data === 'auth_by_email') {
+      } else if (text === 'Авторизация') {
         bot.sendMessage(chatId, 'Пожалуйста, введите ваш email:').then((sentMessage) => {
           messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
           bot.once('message', async (msg) => {
@@ -212,7 +217,14 @@ bot.onText(/\/restart/, async (msg) => {
             }
           });
         });
-      } else if (callbackQuery.data === 'list_tickets') {
+      }
+    });
+
+    bot.on('callback_query', async (callbackQuery) => {
+      const msg = callbackQuery.message;
+      const chatId = msg.chat.id;
+
+      if (callbackQuery.data === 'list_tickets') {
         bot.sendMessage(chatId, 'Функционал списка билетов пока не реализован.').then((sentMessage) => {
           messagesToDelete.push({ chatId, messageId: sentMessage.message_id });
         });
